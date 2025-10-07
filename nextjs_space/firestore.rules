@@ -1,0 +1,96 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for RBAC
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRoles() {
+      return request.auth.token.role;
+    }
+    
+    function getUserDepartments() {
+      return request.auth.token.departments;
+    }
+    
+    function isDirector() {
+      return isAuthenticated() && 
+        (getUserRoles().hasAny(['Presidente', 'Diretor']) || 
+         getUserDepartments().hasAny(['Direção']));
+    }
+    
+    function canAccessDepartment(deptId) {
+      return isDirector() || getUserDepartments().hasAny([deptId]);
+    }
+    
+    function canWriteToDepartment(deptId) {
+      return isAuthenticated() && canAccessDepartment(deptId);
+    }
+
+    // Club structure
+    match /clubs/{clubId} {
+      allow read, write: if isDirector();
+      
+      // Departments access
+      match /departments/{departmentId} {
+        allow read: if canAccessDepartment(departmentId);
+        allow write: if canWriteToDepartment(departmentId);
+        
+        // Department members
+        match /members/{memberId} {
+          allow read: if canAccessDepartment(departmentId);
+          allow write: if canWriteToDepartment(departmentId);
+        }
+      }
+      
+      // Players access (visible to technical and medical departments)
+      match /players/{playerId} {
+        allow read: if isAuthenticated() && 
+          (isDirector() || 
+           getUserDepartments().hasAny(['Equipa Técnica', 'Clínico']));
+        allow write: if isAuthenticated() && 
+          (isDirector() || 
+           getUserDepartments().hasAny(['Equipa Técnica', 'Clínico']));
+      }
+      
+      // Feed posts with visibility control
+      match /feed/{postId} {
+        allow read: if isAuthenticated() && (
+          isDirector() ||
+          // Check if user's department is in visibility.departments
+          resource.data.visibility.departments.hasAny(getUserDepartments()) ||
+          // Check if user's role is in visibility.roles  
+          resource.data.visibility.roles.hasAny(getUserRoles()) ||
+          // Check if user's uid is in visibility.users
+          resource.data.visibility.users.hasAny([request.auth.uid]) ||
+          // Check if post author
+          resource.data.authorUid == request.auth.uid
+        );
+        allow write: if isAuthenticated() && canAccessDepartment(resource.data.departmentId);
+      }
+      
+      // Requests between departments
+      match /requests/{requestId} {
+        allow read: if isAuthenticated() && (
+          isDirector() ||
+          canAccessDepartment(resource.data.fromDept) ||
+          canAccessDepartment(resource.data.toDept)
+        );
+        allow write: if isAuthenticated() && (
+          canAccessDepartment(resource.data.fromDept) ||
+          canAccessDepartment(resource.data.toDept)
+        );
+      }
+    }
+    
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && 
+        (request.auth.uid == userId || isDirector());
+    }
+  }
+}
