@@ -2,8 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Department } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,87 +24,35 @@ export function Organograma() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulação de dados enquanto Firebase não está configurado
-    const mockDepartments: Department[] = [
-      {
-        id: '1',
-        name: 'Direção',
-        description: 'Gestão executiva do clube',
-        head: 'João Silva',
-        roles: ['Presidente', 'Vice-Presidente'],
-        createdAt: new Date(),
-        contacts_public: {
-          email: 'direcao@clube.pt',
-          phone: '+351 123 456 789'
-        }
-      },
-      {
-        id: '2', 
-        name: 'Equipa Técnica',
-        description: 'Treinadores e staff técnico',
-        head: 'Carlos Santos',
-        roles: ['Treinador Principal', 'Treinador Adjunto', 'Preparador Físico'],
-        createdAt: new Date(),
-        contacts_public: {
-          email: 'tecnica@clube.pt',
-          phone: '+351 123 456 790'
-        }
-      },
-      {
-        id: '3',
-        name: 'Clínico',
-        description: 'Departamento médico e fisioterapeutas',
-        head: 'Dra. Ana Costa',
-        roles: ['Médico', 'Fisioterapeuta', 'Massagista'],
-        createdAt: new Date(),
-        contacts_public: {
-          email: 'clinico@clube.pt',
-          phone: '+351 123 456 791'
-        }
-      },
-      {
-        id: '4',
-        name: 'Nutrição',
-        description: 'Nutricionistas e dietistas',
-        head: 'Dr. Pedro Lopes',
-        roles: ['Nutricionista', 'Dietista'],
-        createdAt: new Date(),
-        contacts_public: {
-          email: 'nutricao@clube.pt',
-          phone: '+351 123 456 792'
-        }
-      },
-      {
-        id: '5',
-        name: 'Logística',
-        description: 'Equipamentos e transporte',
-        head: 'Maria Ferreira',
-        roles: ['Roupeiro', 'Motorista', 'Segurança'],
-        createdAt: new Date(),
-        contacts_public: {
-          email: 'logistica@clube.pt',
-          phone: '+351 123 456 793'
-        }
-      }
-    ];
-
-    setDepartments(mockDepartments);
-    setLoading(false);
-    
-    /* Código real para Firebase (descomentado quando configurado):
-    const q = query(collection(db, 'clubs/demo/departments'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const depts: Department[] = [];
-      snapshot.forEach((doc) => {
-        depts.push({ id: doc.id, ...doc.data() } as Department);
-      });
-      setDepartments(depts);
-      setLoading(false);
-    });
-    
-    return () => unsubscribe();
-    */
+    loadDepartments();
   }, []);
+
+  const loadDepartments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/departments?clubId=default-club');
+      const result = await response.json();
+      
+      if (result.success) {
+        setDepartments(result.data);
+      } else {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar os departamentos',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar departamentos:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro de conexão ao carregar departamentos',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredDepartments = departments.filter(dept =>
     dept?.name?.toLowerCase()?.includes(searchTerm?.toLowerCase() || '') ||
