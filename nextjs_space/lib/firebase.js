@@ -16,12 +16,13 @@ import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "demo-api-key",
-  authDomain: "demo-project.firebaseapp.com", 
-  projectId: "demo-project",
-  storageBucket: "demo-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyCc6CWZSoFQUk12SZGLdovmqc0tV8rM0c0",
+  authDomain: "futperform-club-manager.firebaseapp.com",
+  projectId: "futperform-club-manager",
+  storageBucket: "futperform-club-manager.firebasestorage.app",
+  messagingSenderId: "375308686661",
+  appId: "1:375308686661:web:4a9e0491cd29dca51d9a2c",
+  measurementId: "G-S23BCXNPXE"
 };
 
 // Initialize Firebase
