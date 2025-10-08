@@ -20,64 +20,131 @@ import {
   Filter
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function Departamento() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    availableStatus: 'Disponível'
+  });
   const { toast } = useToast();
 
-  // Dados mockados para demonstração
   useEffect(() => {
-    const mockMembers: Member[] = [
-      {
-        id: '1',
-        uid: 'user1',
-        name: 'Carlos Santos',
-        role: 'Treinador Principal',
-        email: 'carlos.santos@clube.pt',
-        phone: '+351 912 345 678',
-        photoURL: '',
-        permissions: ['read:players', 'write:players', 'read:training'],
-        active: true,
-        availableStatus: 'Disponível',
-        lastLogin: new Date(),
-        joinedAt: new Date()
-      },
-      {
-        id: '2', 
-        uid: 'user2',
-        name: 'Ana Ferreira',
-        role: 'Treinadora Adjunta',
-        email: 'ana.ferreira@clube.pt',
-        phone: '+351 912 345 679',
-        photoURL: '',
-        permissions: ['read:players', 'read:training'],
-        active: true,
-        availableStatus: 'Em campo',
-        lastLogin: new Date(),
-        joinedAt: new Date()
-      },
-      {
-        id: '3',
-        uid: 'user3', 
-        name: 'Pedro Costa',
-        role: 'Preparador Físico',
-        email: 'pedro.costa@clube.pt',
-        phone: '+351 912 345 680',
-        photoURL: '',
-        permissions: ['read:players', 'write:fitness'],
-        active: true,
-        availableStatus: 'De folga',
-        lastLogin: new Date(),
-        joinedAt: new Date()
-      }
-    ];
-
-    setMembers(mockMembers);
-    setLoading(false);
+    loadMembers();
   }, []);
+
+  const loadMembers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/members?clubId=default-club');
+      const result = await response.json();
+      
+      if (result.success) {
+        setMembers(result.data);
+      } else {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar os membros',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar membros:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro de conexão ao carregar membros',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateMember = async () => {
+    if (!formData.name || !formData.email) {
+      toast({
+        title: 'Campos obrigatórios',
+        description: 'Por favor preencha nome e email',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const response = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clubId: 'default-club',
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+          availableStatus: formData.availableStatus,
+          permissions: []
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Sucesso',
+          description: 'Membro adicionado com sucesso!'
+        });
+        setIsDialogOpen(false);
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          role: '',
+          availableStatus: 'Disponível'
+        });
+        loadMembers();
+      } else {
+        toast({
+          title: 'Erro',
+          description: result.error || 'Erro ao adicionar membro',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar membro:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro de conexão ao adicionar membro',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filteredMembers = members?.filter(member => {
     const matchesSearch = member?.name?.toLowerCase()?.includes(searchTerm?.toLowerCase() || '') ||
@@ -121,7 +188,7 @@ export function Departamento() {
             <MessageSquare className="mr-2 h-4 w-4" />
             Feed Interno
           </Button>
-          <Button>
+          <Button onClick={() => setIsDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Membro
           </Button>
@@ -271,6 +338,95 @@ export function Departamento() {
           </p>
         </div>
       )}
+
+      {/* Dialog para adicionar membro */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Membro</DialogTitle>
+            <DialogDescription>
+              Preencha os dados do novo membro da equipa
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="member-name">Nome Completo *</Label>
+              <Input
+                id="member-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: João Silva"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="member-email">Email *</Label>
+              <Input
+                id="member-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="joao.silva@clube.pt"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="member-phone">Telefone</Label>
+              <Input
+                id="member-phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+351 912 345 678"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="member-role">Função</Label>
+              <Input
+                id="member-role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                placeholder="Ex: Treinador Principal"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="member-status">Estado de Disponibilidade</Label>
+              <Select
+                value={formData.availableStatus}
+                onValueChange={(value) => setFormData({ ...formData, availableStatus: value })}
+              >
+                <SelectTrigger id="member-status">
+                  <SelectValue placeholder="Selecione o estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Disponível">Disponível</SelectItem>
+                  <SelectItem value="Em campo">Em campo</SelectItem>
+                  <SelectItem value="De folga">De folga</SelectItem>
+                  <SelectItem value="Ausente">Ausente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateMember}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'A adicionar...' : 'Adicionar Membro'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

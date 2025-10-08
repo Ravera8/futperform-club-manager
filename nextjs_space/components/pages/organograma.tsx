@@ -16,11 +16,31 @@ import {
   Phone 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export function Organograma() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    head: '',
+    email: '',
+    phone: '',
+    roles: ''
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,6 +71,72 @@ export function Organograma() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateDepartment = async () => {
+    if (!formData.name || !formData.description) {
+      toast({
+        title: 'Campos obrigatórios',
+        description: 'Por favor preencha nome e descrição',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const rolesArray = formData.roles.split(',').map(r => r.trim()).filter(r => r);
+      
+      const response = await fetch('/api/departments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clubId: 'default-club',
+          name: formData.name,
+          description: formData.description,
+          head: formData.head,
+          roles: rolesArray,
+          contacts_public: {
+            email: formData.email,
+            phone: formData.phone
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Sucesso',
+          description: 'Departamento criado com sucesso!'
+        });
+        setIsDialogOpen(false);
+        setFormData({
+          name: '',
+          description: '',
+          head: '',
+          email: '',
+          phone: '',
+          roles: ''
+        });
+        loadDepartments();
+      } else {
+        toast({
+          title: 'Erro',
+          description: result.error || 'Erro ao criar departamento',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao criar departamento:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro de conexão ao criar departamento',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,7 +185,7 @@ export function Organograma() {
           </p>
         </div>
         
-        <Button>
+        <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Departamento
         </Button>
@@ -222,6 +308,99 @@ export function Organograma() {
           </Card>
         ))}
       </div>
+
+      {/* Dialog para criar departamento */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Criar Novo Departamento</DialogTitle>
+            <DialogDescription>
+              Preencha os dados do novo departamento do clube
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Equipa Técnica"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Descrição *</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Descreva as responsabilidades do departamento"
+                rows={3}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="head">Responsável</Label>
+              <Input
+                id="head"
+                value={formData.head}
+                onChange={(e) => setFormData({ ...formData, head: e.target.value })}
+                placeholder="Nome do responsável"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email de Contato</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="departamento@clube.pt"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Telefone de Contato</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+351 123 456 789"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="roles">Funções (separadas por vírgula)</Label>
+              <Textarea
+                id="roles"
+                value={formData.roles}
+                onChange={(e) => setFormData({ ...formData, roles: e.target.value })}
+                placeholder="Ex: Treinador Principal, Treinador Adjunto, Preparador Físico"
+                rows={2}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateDepartment}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'A criar...' : 'Criar Departamento'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
